@@ -8,6 +8,7 @@ import {
 } from '@/lib/simon';
 import Leaderboard, { LbEntry } from './Leaderboard';
 import TTEvents from './TTEvents';
+import { useKeyboardHints } from './KeyboardHintsProvider';
 
 type Phase = 'idle' | 'showing' | 'player' | 'gameover';
 
@@ -49,6 +50,7 @@ const PODIUM: Record<number, { emoji: string; color: string; bg: string; border:
 };
 
 export default function SimonGame({ initialLeaderboard }: Props) {
+  const { hints } = useKeyboardHints();
   // ── Visual state ──────────────────────────────────────────────────────────
   const [phase, _setPhase] = useState<Phase>('idle');
   const [score, setScore] = useState(0);
@@ -131,6 +133,14 @@ export default function SimonGame({ initialLeaderboard }: Props) {
     });
   }
 
+  const KEY_MAP: Record<string, ButtonId> = {
+    q: 'green', e: 'red', a: 'yellow', d: 'blue',
+  };
+
+  const BUTTON_KEYS: Record<ButtonId, string> = {
+    green: 'Q', red: 'E', yellow: 'A', blue: 'D',
+  };
+
   function handlePress(id: ButtonId) {
     if (phaseRef.current !== 'player') return;
     const resolve = inputResolverRef.current;
@@ -139,6 +149,15 @@ export default function SimonGame({ initialLeaderboard }: Props) {
     if (inputTimerRef.current) { clearTimeout(inputTimerRef.current); inputTimerRef.current = null; }
     resolve(id);
   }
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const id = KEY_MAP[e.key.toLowerCase()];
+      if (id) handlePress(id);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   function cancelInput() {
     if (inputResolverRef.current) { inputResolverRef.current('timeout'); inputResolverRef.current = null; }
@@ -308,7 +327,7 @@ export default function SimonGame({ initialLeaderboard }: Props) {
               onClick={() => handlePress(id)}
               disabled={phase !== 'player'}
               aria-label={id}
-              className="w-full h-full select-none cursor-pointer disabled:cursor-default active:opacity-80"
+              className="relative w-full h-full select-none cursor-pointer disabled:cursor-default active:opacity-80"
               style={{
                 borderRadius: st.borderRadius,
                 background: isLit ? st.lit : st.dim,
@@ -319,7 +338,16 @@ export default function SimonGame({ initialLeaderboard }: Props) {
                 border: 'none',
                 outline: 'none',
               }}
-            />
+            >
+              {hints && (
+                <span
+                  className="absolute inset-0 flex items-center justify-center font-bold opacity-30 pointer-events-none select-none"
+                  style={{ fontFamily: 'var(--font-syne)', fontSize: 'clamp(0.7rem, 2.5vw, 1.1rem)' }}
+                >
+                  {BUTTON_KEYS[id]}
+                </span>
+              )}
+            </button>
           );
         })}
       </div>
@@ -416,131 +444,141 @@ export default function SimonGame({ initialLeaderboard }: Props) {
     const { id, position, entries } = gameOverData;
     const podium = PODIUM[position];
 
+    const resultContent = (
+      <>
+        {/* Podium message (top 3) */}
+        {position >= 1 && position <= 3 && podium && (
+          <div
+            className="rounded-2xl p-8 text-center mb-6 w-full"
+            style={{ background: podium.bg, border: `1px solid ${podium.border}` }}
+          >
+            <div className="text-5xl mb-3">{podium.emoji}</div>
+            <h3
+              className="text-xl font-bold mb-2 leading-snug"
+              style={{ color: podium.color, fontFamily: 'var(--font-syne)' }}
+            >
+              {podium.msg(playerName)}
+            </h3>
+            <p className="text-sm text-[#888]" style={{ fontFamily: 'var(--font-inter)' }}>
+              {podium.sub}
+            </p>
+          </div>
+        )}
+
+        {/* Context table (#4+) */}
+        {leaderboardCtx && (
+          <div className="mb-6 w-full">
+            <p className="text-[#555] text-xs text-center mb-3 uppercase tracking-widest" style={{ fontFamily: 'var(--font-syne)' }}>
+              Tu posición
+            </p>
+            <div className="flex flex-col gap-1">
+              {leaderboardCtx.above.map((entry, i) => {
+                const rank = leaderboardCtx.position - (leaderboardCtx.above.length - i);
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#111]">
+                    <span className="text-[#444] text-xs w-8 text-right shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>#{rank}</span>
+                    <span className="text-[#777] flex-1 truncate text-sm" style={{ fontFamily: 'var(--font-inter)' }}>{entry.name}</span>
+                    <span className="text-[#555] text-sm font-bold shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>{entry.score}</span>
+                  </div>
+                );
+              })}
+              <div
+                className="flex items-center gap-3 px-4 py-3 rounded-lg"
+                style={{ background: 'rgba(238,196,22,0.09)', border: '1px solid rgba(238,196,22,0.32)' }}
+              >
+                <span className="text-xs w-8 text-right shrink-0 font-bold" style={{ fontFamily: 'var(--font-syne)', color: '#eec416' }}>
+                  #{leaderboardCtx.position}
+                </span>
+                <span className="flex-1 truncate text-sm font-medium" style={{ fontFamily: 'var(--font-inter)', color: '#fff' }}>
+                  {playerName}
+                </span>
+                <span className="text-sm font-bold shrink-0" style={{ fontFamily: 'var(--font-syne)', color: '#eec416' }}>
+                  {score}
+                </span>
+              </div>
+              {leaderboardCtx.below.map((entry, i) => {
+                const rank = leaderboardCtx.position + i + 1;
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#111]">
+                    <span className="text-[#444] text-xs w-8 text-right shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>#{rank}</span>
+                    <span className="text-[#777] flex-1 truncate text-sm" style={{ fontFamily: 'var(--font-inter)' }}>{entry.name}</span>
+                    <span className="text-[#555] text-sm font-bold shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>{entry.score}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Position for edge cases */}
+        {position > 0 && position > 3 && !leaderboardCtx && (
+          <p className="text-center text-[#666] mb-6 text-sm" style={{ fontFamily: 'var(--font-inter)' }}>
+            Quedaste en el puesto #{position}
+          </p>
+        )}
+
+        {/* Play again */}
+        <div className="text-center w-full">
+          <button
+            onClick={resetGame}
+            className="btn-gold px-8 py-4 bg-[#eec416] text-[#0d0d0d] rounded-full text-sm uppercase tracking-widest hover:bg-[#f5d038] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{ fontFamily: 'var(--font-syne)', fontWeight: 700 }}
+          >
+            Jugar de nuevo
+          </button>
+        </div>
+      </>
+    );
+
     return (
-      <div className="min-h-screen pt-20 px-4 pb-16">
-        <div className="max-w-4xl mx-auto">
-          {/* Score header */}
+      <div className="min-h-screen pt-16">
+        <div className="flex max-w-7xl mx-auto px-10 py-10 items-start gap-16">
+          {/* Left: TTEvents */}
+          <div className="hidden lg:block w-64 shrink-0 sticky top-24 h-fit">
+            <TTEvents />
+          </div>
+
+          {/* Center: score + result + play again */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-8 pt-6"
+            className="flex-1 flex flex-col items-center min-w-0 pt-6"
           >
             <p className="text-[#555] text-xs uppercase tracking-widest mb-2" style={{ fontFamily: 'var(--font-syne)' }}>
               Juego terminado
             </p>
             <h2
-              className="text-white"
+              className="text-white mb-8"
               style={{ fontFamily: 'var(--font-syne)', fontWeight: 800, fontSize: 'clamp(2rem, 7vw, 3.8rem)' }}
             >
               <span className="text-[#eec416]">{score}</span>{' '}
               <span className="text-[#555]">{score === 1 ? 'punto' : 'puntos'}</span>
             </h2>
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="w-full max-w-sm flex flex-col items-center"
+            >
+              {resultContent}
+            </motion.div>
           </motion.div>
 
-          <div className="flex flex-col lg:flex-row gap-8 items-start">
-            {/* Left: result + actions */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.12 }}
-              className="flex-1 min-w-0"
-            >
-              {/* Podium message (top 3) */}
-              {position >= 1 && position <= 3 && podium && (
-                <div
-                  className="rounded-2xl p-8 text-center mb-6"
-                  style={{ background: podium.bg, border: `1px solid ${podium.border}` }}
-                >
-                  <div className="text-5xl mb-3">{podium.emoji}</div>
-                  <h3
-                    className="text-xl font-bold mb-2 leading-snug"
-                    style={{ color: podium.color, fontFamily: 'var(--font-syne)' }}
-                  >
-                    {podium.msg(playerName)}
-                  </h3>
-                  <p className="text-sm text-[#888]" style={{ fontFamily: 'var(--font-inter)' }}>
-                    {podium.sub}
-                  </p>
-                </div>
-              )}
+          {/* Right: full leaderboard */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="hidden lg:block w-64 shrink-0 sticky top-24 h-fit"
+          >
+            <Leaderboard entries={entries} highlightId={id} />
+          </motion.div>
+        </div>
 
-              {/* Context table (#4+) */}
-              {leaderboardCtx && (
-                <div className="mb-6">
-                  <p className="text-[#555] text-xs text-center mb-3 uppercase tracking-widest" style={{ fontFamily: 'var(--font-syne)' }}>
-                    Tu posición
-                  </p>
-                  <div className="flex flex-col gap-1">
-                    {leaderboardCtx.above.map((entry, i) => {
-                      const rank = leaderboardCtx.position - (leaderboardCtx.above.length - i);
-                      return (
-                        <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#111]">
-                          <span className="text-[#444] text-xs w-8 text-right shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>#{rank}</span>
-                          <span className="text-[#777] flex-1 truncate text-sm" style={{ fontFamily: 'var(--font-inter)' }}>{entry.name}</span>
-                          <span className="text-[#555] text-sm font-bold shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>{entry.score}</span>
-                        </div>
-                      );
-                    })}
-
-                    {/* User row */}
-                    <div
-                      className="flex items-center gap-3 px-4 py-3 rounded-lg"
-                      style={{ background: 'rgba(238,196,22,0.09)', border: '1px solid rgba(238,196,22,0.32)' }}
-                    >
-                      <span className="text-xs w-8 text-right shrink-0 font-bold" style={{ fontFamily: 'var(--font-syne)', color: '#eec416' }}>
-                        #{leaderboardCtx.position}
-                      </span>
-                      <span className="flex-1 truncate text-sm font-medium" style={{ fontFamily: 'var(--font-inter)', color: '#fff' }}>
-                        {playerName}
-                      </span>
-                      <span className="text-sm font-bold shrink-0" style={{ fontFamily: 'var(--font-syne)', color: '#eec416' }}>
-                        {score}
-                      </span>
-                    </div>
-
-                    {leaderboardCtx.below.map((entry, i) => {
-                      const rank = leaderboardCtx.position + i + 1;
-                      return (
-                        <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#111]">
-                          <span className="text-[#444] text-xs w-8 text-right shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>#{rank}</span>
-                          <span className="text-[#777] flex-1 truncate text-sm" style={{ fontFamily: 'var(--font-inter)' }}>{entry.name}</span>
-                          <span className="text-[#555] text-sm font-bold shrink-0" style={{ fontFamily: 'var(--font-syne)' }}>{entry.score}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Position for edge cases */}
-              {position > 0 && position > 3 && !leaderboardCtx && (
-                <p className="text-center text-[#666] mb-6 text-sm" style={{ fontFamily: 'var(--font-inter)' }}>
-                  Quedaste en el puesto #{position}
-                </p>
-              )}
-
-              {/* Play again */}
-              <div className="text-center">
-                <button
-                  onClick={resetGame}
-                  className="btn-gold px-8 py-4 bg-[#eec416] text-[#0d0d0d] rounded-full text-sm uppercase tracking-widest hover:bg-[#f5d038] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ fontFamily: 'var(--font-syne)', fontWeight: 700 }}
-                >
-                  Jugar de nuevo
-                </button>
-              </div>
-            </motion.div>
-
-            {/* Right: full leaderboard */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.22 }}
-              className="w-full lg:w-72 shrink-0"
-            >
-              <Leaderboard entries={entries} highlightId={id} />
-            </motion.div>
-          </div>
+        {/* Mobile: leaderboard + events */}
+        <div className="lg:hidden max-w-[440px] mx-auto px-4 pb-12 flex flex-col gap-10">
+          <Leaderboard entries={entries} highlightId={id} />
+          <TTEvents />
         </div>
       </div>
     );

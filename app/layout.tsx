@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Syne, Inter } from 'next/font/google';
+import KeyboardHintsProvider from '@/components/KeyboardHintsProvider';
 import './globals.css';
 
 const syne = Syne({
@@ -25,7 +26,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" className={`${syne.variable} ${inter.variable} h-full`}>
       <body className="min-h-full bg-[#0d0d0d] text-white antialiased">
-        {children}
+        <KeyboardHintsProvider>
+          {children}
+        </KeyboardHintsProvider>
       </body>
     </html>
   );

@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { useKeyboardHints } from './KeyboardHintsProvider';
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const { hints, toggle } = useKeyboardHints();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -41,15 +43,29 @@ export default function Nav() {
           </span>
         </div>
 
-        <a
-          href="https://techtrek-web.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-[#666] hover:text-[#eec416] transition-colors duration-200 uppercase tracking-widest border border-[#1f1f1f] px-3 py-1.5 rounded-full hover:border-[#eec416]/40"
-          style={{ fontFamily: 'var(--font-inter)' }}
-        >
-          techtrek.ar ↗
-        </a>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggle}
+            title={hints ? 'Ocultar teclas' : 'Mostrar teclas'}
+            className="text-xs uppercase tracking-widest border px-3 py-1.5 rounded-full transition-colors duration-200"
+            style={{
+              fontFamily: 'var(--font-inter)',
+              color: hints ? '#eec416' : '#444',
+              borderColor: hints ? 'rgba(238,196,22,0.4)' : '#1f1f1f',
+            }}
+          >
+            ⌨ teclas
+          </button>
+          <a
+            href="https://techtrek-web.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[#666] hover:text-[#eec416] transition-colors duration-200 uppercase tracking-widest border border-[#1f1f1f] px-3 py-1.5 rounded-full hover:border-[#eec416]/40"
+            style={{ fontFamily: 'var(--font-inter)' }}
+          >
+            techtrek.ar ↗
+          </a>
+        </div>
       </div>
 
       <motion.div

@@ -15,8 +15,8 @@ function lerp(a: number, b: number, t: number) {
 }
 
 export function getSpeed(score: number): GameSpeed {
-  if (score <= 4) return SPEED_A;
-  const t = Math.min(1, (score - 4) / 16);
+  if (score <= 3) return SPEED_A;
+  const t = 1 - Math.exp(-0.3 * (score - 3));
   return {
     flashMs: Math.round(lerp(SPEED_A.flashMs, SPEED_B.flashMs, t)),
     gapMs:   Math.round(lerp(SPEED_A.gapMs,   SPEED_B.gapMs,   t)),
