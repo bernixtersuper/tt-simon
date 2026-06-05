@@ -136,6 +136,8 @@ export const SHOWING_MESSAGES = [
   '빨강, 초록, 빨강... 뭐였더라?',
   'Rot, grün, rot... wie ging das nochmal?',
   'Rouge, vert, rouge... c\'était quoi déjà?',
+  '红、绿、红。。。然后呢？',
+  '紅、綠、紅⋯⋯接下來是什麼？',
 ];
 
 export function randomButton(): ButtonId {

@@ -18,7 +18,7 @@ Players compete for the highest score on a live leaderboard. Built to spark conv
 - 4 buttons (green, red, yellow, blue) arranged as pie slices
 - Speed ramps up gradually after score 4, maxes out around score 20
 - Timer bar per button press — gold → orange → red as time runs out
-- Multilingual funny messages during pattern display (ES, EN, JP, KO, RU, PT, IT, SV, TH, DE, FR)
+- Multilingual funny messages during pattern display (ES, EN, JP, KO, RU, PT, IT, SV, TH, DE, FR, ZH)
 - Live leaderboard: podium messages for top 3, context table for #4+
 
 ## Development
