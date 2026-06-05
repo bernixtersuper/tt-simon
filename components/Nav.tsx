@@ -7,7 +7,7 @@ import { useKeyboardHints } from './KeyboardHintsProvider';
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
-  const { hints, toggle } = useKeyboardHints();
+  const { hints, toggleHints, hardMode, toggleHardMode } = useKeyboardHints();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -45,7 +45,19 @@ export default function Nav() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={toggle}
+            onClick={toggleHardMode}
+            title={hardMode ? 'Velocidad normal' : 'Velocidad máxima desde el inicio'}
+            className="text-xs uppercase tracking-widest border px-3 py-1.5 rounded-full transition-colors duration-200"
+            style={{
+              fontFamily: 'var(--font-inter)',
+              color: hardMode ? '#ef4444' : '#444',
+              borderColor: hardMode ? 'rgba(239,68,68,0.4)' : '#1f1f1f',
+            }}
+          >
+            ⚡ hard
+          </button>
+          <button
+            onClick={toggleHints}
             title={hints ? 'Ocultar teclas' : 'Mostrar teclas'}
             className="text-xs uppercase tracking-widest border px-3 py-1.5 rounded-full transition-colors duration-200"
             style={{

@@ -22,12 +22,13 @@ export async function POST(req: NextRequest) {
     const name = String(body.name ?? '').trim().slice(0, 20);
     const email = body.email ? String(body.email).trim().slice(0, 255) : null;
     const score = Math.max(0, Math.floor(Number(body.score) || 0));
+    const hardMode = body.hardMode === true;
 
     if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 });
 
     const [inserted] = await db
       .insert(leaderboard)
-      .values({ name, email, score })
+      .values({ name, email, score, hardMode })
       .returning();
 
     // Position = exact row in leaderboard (score > mine OR same score inserted earlier)

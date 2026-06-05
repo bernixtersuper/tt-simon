@@ -8,7 +8,7 @@ export interface GameSpeed {
 }
 
 export const SPEED_A: GameSpeed = { flashMs: 820, gapMs: 230, timerMs: 5000 };
-export const SPEED_B: GameSpeed = { flashMs: 280, gapMs: 75, timerMs: 1800 };
+export const SPEED_B: GameSpeed = { flashMs: 180, gapMs: 50, timerMs: 1800 };
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;

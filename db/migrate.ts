@@ -16,6 +16,11 @@ async function migrate() {
   `;
 
   await sql`
+    ALTER TABLE leaderboard
+    ADD COLUMN IF NOT EXISTS hard_mode BOOLEAN NOT NULL DEFAULT FALSE
+  `;
+
+  await sql`
     CREATE INDEX IF NOT EXISTS leaderboard_score_idx
     ON leaderboard (score DESC, created_at ASC)
   `;

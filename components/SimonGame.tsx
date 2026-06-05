@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BUTTONS, ButtonId, BUTTON_STYLE, SHOWING_MESSAGES,
-  getSpeed, playButton, playError, randomButton,
+  getSpeed, playButton, playError, randomButton, SPEED_B,
 } from '@/lib/simon';
 import Leaderboard, { LbEntry } from './Leaderboard';
 import TTEvents from './TTEvents';
@@ -50,7 +50,7 @@ const PODIUM: Record<number, { emoji: string; color: string; bg: string; border:
 };
 
 export default function SimonGame({ initialLeaderboard }: Props) {
-  const { hints } = useKeyboardHints();
+  const { hints, hardMode } = useKeyboardHints();
   // ── Visual state ──────────────────────────────────────────────────────────
   const [phase, _setPhase] = useState<Phase>('idle');
   const [score, setScore] = useState(0);
@@ -72,6 +72,7 @@ export default function SimonGame({ initialLeaderboard }: Props) {
   const inputResolverRef = useRef<((v: ButtonId | 'timeout') => void) | null>(null);
   const inputTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const visualTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const litGenRef = useRef(0);
   const playerNameRef = useRef('');
   const playerEmailRef = useRef('');
   const scoreRef = useRef(0);
@@ -166,12 +167,12 @@ export default function SimonGame({ initialLeaderboard }: Props) {
   }
 
   // ── Score submit ──────────────────────────────────────────────────────────
-  async function submitScore(name: string, email: string, finalScore: number) {
+  async function submitScore(name: string, email: string, finalScore: number, isHardMode: boolean) {
     try {
       const res = await fetch('/api/leaderboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: email || null, score: finalScore }),
+        body: JSON.stringify({ name, email: email || null, score: finalScore, hardMode: isHardMode }),
       });
       const data = await res.json();
       const entries: LbEntry[] = Array.isArray(data.entries) ? data.entries : lbEntries;
@@ -192,11 +193,12 @@ export default function SimonGame({ initialLeaderboard }: Props) {
     while (!token.cancelled) {
       seq = [...seq, randomButton()];
 
-      // Show sequence
+      // Show sequence — increment gen to invalidate any pending player-phase clear
       setPhase('showing');
+      litGenRef.current++;
       setCurrentMessage(SHOWING_MESSAGES[Math.floor(Math.random() * SHOWING_MESSAGES.length)]);
 
-      const speed = getSpeed(currentScore);
+      const speed = hardMode ? SPEED_B : getSpeed(currentScore);
       await delay(480);
       if (token.cancelled) return;
 
@@ -223,16 +225,24 @@ export default function SimonGame({ initialLeaderboard }: Props) {
         stopVisualTimer();
 
         if (token.cancelled) return;
-
         if (input === 'timeout') { roundOk = false; break; }
 
-        // Light up pressed button briefly
+        // Non-blocking feedback: light up and schedule clear via setTimeout.
+        // Gen prevents a stale clear from a previous press from wiping the new button.
+        // setLitButton('x') and the setTimeout run after await yields, so React renders
+        // the lit state before the next iteration's awaitInput yields again.
+        const pressDuration = Math.min(speed.flashMs, 200);
+        const gen = ++litGenRef.current;
         setLitButton(input as ButtonId);
-        playButton(input as ButtonId, Math.min(speed.flashMs, 220));
-        await delay(Math.min(speed.flashMs, 200));
-        setLitButton(null);
+        playButton(input as ButtonId, pressDuration);
+        setTimeout(() => { if (litGenRef.current === gen) setLitButton(null); }, pressDuration);
 
-        if (input !== seq[i]) { roundOk = false; break; }
+        if (input !== seq[i]) {
+          await delay(pressDuration);
+          roundOk = false;
+          break;
+        }
+        // No await — immediately open window for next button
       }
 
       if (token.cancelled) return;
@@ -241,7 +251,7 @@ export default function SimonGame({ initialLeaderboard }: Props) {
         playError();
         setLitButton(null);
         setPhase('gameover');
-        await submitScore(playerNameRef.current, playerEmailRef.current, currentScore);
+        await submitScore(playerNameRef.current, playerEmailRef.current, currentScore, hardMode);
         return;
       }
 

@@ -6,6 +6,7 @@ export interface LbEntry {
   id: number;
   name: string;
   score: number;
+  hardMode: boolean;
   createdAt: string | Date | null;
 }
 
@@ -83,6 +84,11 @@ export default function Leaderboard({ entries, highlightId, title = 'Leaderboard
                 >
                   {truncateName(entry.name)}
                 </span>
+
+                {/* Hard mode badge */}
+                {entry.hardMode && (
+                  <span className="text-xs shrink-0" title="Hard mode">⚡</span>
+                )}
 
                 {/* Score */}
                 <span
